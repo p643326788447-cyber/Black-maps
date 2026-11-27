@@ -2,7 +2,7 @@ const API="/.netlify/functions/api";const $=s=>document.querySelector(s);let aut
 async function api(action,options={}){const [act,query]=action.split("&",2);const r=await fetch(`${API}?action=${encodeURIComponent(act)}${query?"&"+query:""}`,options);let d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||"خطا در ارتباط با سرور");return d}
 function esc(v=""){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function showDash(){authed=true;$("#login-panel").hidden=true;$("#dashboard").hidden=false;$("#logout").hidden=false;refreshAll()}
-async function check(){try{await api("me");showDash()}catch{$("#login-panel").hidden=false}}
+async function check(){try{await api("me");showDash()}catch{location.replace("/admin-login.html")}}
 $("#login-form").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),s=$("#login-status");s.textContent="در حال ورود…";try{await api("login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({username:f.get("username"),password:f.get("password")})});showDash()}catch(err){s.textContent=err.message}};
 $("#logout").onclick=async()=>{await api("logout",{method:"POST"});location.reload()};
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));["maps","comments","support","announcements"].forEach(t=>$("#tab-"+t).hidden=t!==b.dataset.tab);});
