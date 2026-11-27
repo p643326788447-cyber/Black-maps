@@ -107,7 +107,7 @@ export default async (req) => {
     if(action==="comments"&&method==="POST"){
       const b=await req.json().catch(()=>({})),mapId=clean(b.mapId,80),name=clean(b.name,40)||"کاربر",text=clean(b.text,800);
       if(!mapId||!text)return fail("متن نظر خالی است.");if(!await getRecord("map",mapId))return fail("نقشه پیدا نشد.",404);
-      const item={id:id(),mapId,name,text,reply:"",createdAt:new Date().toISOString()};await data.setJSON(`comment:${mapId}:${item.id}`,item);return json({ok:true},201);
+      const item={id:id(),mapId,name,text,reply:"",createdAt:new Date().toISOString()};await data.setJSON(`comment:${mapId}:${item.id}`,item);return json({ok:true,comment:item},201);
     }
     if(action==="comments"&&method==="PATCH"){
       if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
@@ -132,7 +132,7 @@ export default async (req) => {
 
     if(action==="announcements"&&method==="GET")return json({announcements:await list("announcement:")});
     if(action==="announcements"&&method==="POST"){
-      if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);const b=await req.json().catch(()=>({})),title=clean(b.title,90),text=clean(b.text,1200);if(!title||!text)return fail("عنوان و متن اطلاعیه الزامی است.");const item={id:id(),title,text,createdAt:new Date().toISOString()};await data.setJSON(`announcement:${item.id}`,item);return json({ok:true},201);
+      if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);const b=await req.json().catch(()=>({})),title=clean(b.title,90),text=clean(b.text,1200);if(!title||!text)return fail("عنوان و متن اطلاعیه الزامی است.");const item={id:id(),title,text,createdAt:new Date().toISOString()};await data.setJSON(`announcement:${item.id}`,item);return json({ok:true,announcement:item},201);
     }
     if(action==="announcements"&&method==="DELETE"){
       if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);const key=clean(u.searchParams.get("id"),80);if(!await getRecord("announcement",key))return fail("اطلاعیه پیدا نشد.",404);await data.delete(`announcement:${key}`);return json({ok:true});
