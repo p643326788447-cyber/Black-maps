@@ -3,7 +3,7 @@ async function api(action,options={}){const [act,query]=action.split("&",2);cons
 function esc(v=""){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function showDash(){authed=true;const loginPanel=$("#login-panel");if(loginPanel)loginPanel.hidden=true;$("#dashboard").hidden=false;$("#logout").hidden=false;refreshAll()}
 async function check(){try{await api("me");showDash()}catch{location.replace("/admin-login.html")}}
-$("#login-form").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),s=$("#login-status");s.textContent="در حال ورود…";try{await api("login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({username:f.get("username"),password:f.get("password")})});showDash()}catch(err){s.textContent=err.message}};
+
 $("#logout").onclick=async()=>{try{await api("logout",{method:"POST"})}finally{location.replace("/admin-login.html")}};
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x===b));["maps","comments","support","announcements"].forEach(t=>$("#tab-"+t).hidden=t!==b.dataset.tab);});
 $("#map-form").onsubmit=async e=>{e.preventDefault();const s=$("#map-status");s.textContent="در حال ذخیره…";try{const r=await fetch(`${API}?action=maps`,{method:"POST",body:new FormData(e.currentTarget),credentials:"same-origin",cache:"no-store"});const d=await r.json();if(!r.ok)throw Error(d.error||"ذخیره ناموفق بود");e.currentTarget.reset();s.textContent="نقشه با موفقیت ذخیره شد.";refreshMaps()}catch(err){s.textContent=err.message}};
