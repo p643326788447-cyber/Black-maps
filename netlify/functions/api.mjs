@@ -12,7 +12,7 @@ const LOGIN_MAX_ATTEMPTS = 5;
 function json(body, status=200, extra={}) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type":"application/json; charset=utf-8", "cache-control":"no-store", ...extra } });
 }
-function fail(message,status=400){ return json({error:message},status); }
+function fail(message,status=400,extra={}){ return json({error:message},status,extra); }
 function enc(bytes){ let s=""; for(const b of bytes)s+=String.fromCharCode(b); return btoa(s).replaceAll("+","-").replaceAll("/","_").replace(/=+$/,""); }
 function dec(s){ const v=s.replaceAll("-","+").replaceAll("_","/"); const raw=atob(v+"=".repeat((4-v.length%4)%4)); return Uint8Array.from(raw,c=>c.charCodeAt(0)); }
 async function sign(value){const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(process.env.SESSION_SECRET||""),{name:"HMAC",hash:"SHA-256"},false,["sign"]);return enc(new Uint8Array(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(value))));}
@@ -26,6 +26,7 @@ async function list(prefix){const {blobs=[]}=await data.list({prefix});const out
 async function getRecord(type,key){return data.get(`${type}:${key}`,{type:"json"});}
 async function requireAdmin(req){
   if (!await isAdmin(req)) return false;
+  if (["GET","HEAD","OPTIONS"].includes(req.method)) return true;
   const origin = req.headers.get("origin");
   if (!origin) return false;
   try { return new URL(origin).origin === new URL(req.url).origin; } catch { return false; }
