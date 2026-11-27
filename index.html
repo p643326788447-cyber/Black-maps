@@ -8,7 +8,7 @@
 <body>
 <header class="topbar">
   <a class="brand" href="/"><span class="crown">♛</span><span>BLACK <b>MAPS</b><small>CLASH OF CLANS MAPS</small></span></a>
-  <nav><a class="active" href="/">خانه</a><a href="#maps">نقشه‌ها</a><a href="#announcements">اطلاعیه‌ها</a><a href="#support">پشتیبانی</a></nav>
+  <nav><a class="active" href="/">خانه</a><a href="#maps">نقشه‌ها</a><a href="#announcements">اطلاعیه‌ها</a><a href="#support">پشتیبانی</a><a class="admin-link" id="admin-entry" href="/admin.html" hidden>⚙ پنل مدیریت</a></nav>
 </header>
 <main>
   <section class="hero">
@@ -46,5 +46,5 @@
 </main>
 <footer><div class="footer-brand">♛ BLACK <b>MAPS</b></div><p>با BLACK MAPS، حرفه‌ای‌تر بازی کن.</p><small>این وب‌سایت یک پروژه هواداری و مستقل است و وابسته به Supercell نیست.</small></footer>
 <dialog id="map-dialog" class="map-dialog"><button class="dialog-close" type="button" aria-label="بستن">×</button><div id="dialog-content"></div></dialog>
-<script src="/app.js" defer></script>
+<script src="/app.js" defer></script><script defer>fetch("/.netlify/functions/api?action=me",{credentials:"same-origin",cache:"no-store"}).then(r=>{if(r.ok)document.getElementById("admin-entry").hidden=false}).catch(()=>{});</script>
 </body></html>
