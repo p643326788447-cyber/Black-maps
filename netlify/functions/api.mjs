@@ -2,9 +2,12 @@ import { getStore } from "@netlify/blobs";
 
 const data = getStore("black-maps-data", { region: "eu-central-1" });
 const media = getStore("black-maps-media", { region: "eu-central-1" });
+const security = getStore("black-maps-security", { region: "eu-central-1" });
 const MAX_IMAGE = 8 * 1024 * 1024;
 const COOKIE = "blackmaps_admin";
-const REMEMBER_DEVICE_SECONDS = 10 * 365 * 24 * 60 * 60;
+const REMEMBER_DEVICE_SECONDS = 7 * 24 * 60 * 60;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
 
 function json(body, status=200, extra={}) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type":"application/json; charset=utf-8", "cache-control":"no-store", ...extra } });
@@ -21,14 +24,46 @@ function clean(s,n=500){return String(s??"").trim().slice(0,n);}
 function validLink(s){if(!s)return "";try{const u=new URL(s);return u.protocol==="https:"?u.href:""}catch{return ""}}
 async function list(prefix){const {blobs=[]}=await data.list({prefix});const out=await Promise.all(blobs.map(b=>data.get(b.key,{type:"json"})));return out.filter(Boolean).sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));}
 async function getRecord(type,key){return data.get(`${type}:${key}`,{type:"json"});}
-async function requireAdmin(req){return await isAdmin(req);}
+async function requireAdmin(req){
+  if (!await isAdmin(req)) return false;
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+  try { return new URL(origin).origin === new URL(req.url).origin; } catch { return false; }
+}
+async function loginRateKey(req){
+  const ip = req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip));
+  return "login:" + enc(new Uint8Array(digest));
+}
+async function loginBlocked(req){
+  const key = await loginRateKey(req);
+  const state = await security.get(key, {type:"json"});
+  if (!state || state.resetAt <= Date.now()) return {blocked:false,key,attempts:0};
+  return {blocked:state.attempts >= LOGIN_MAX_ATTEMPTS,key,attempts:state.attempts,resetAt:state.resetAt};
+}
+async function recordLoginFailure(key, attempts){
+  const now = Date.now();
+  const state = await security.get(key, {type:"json"});
+  const active = state && state.resetAt > now;
+  const next = {attempts:(active ? state.attempts : 0) + 1, resetAt:active ? state.resetAt : now + LOGIN_WINDOW_MS};
+  await security.setJSON(key,next);
+  return next;
+}
 export default async (req) => {
   try {
     const u=new URL(req.url), action=u.searchParams.get("action")||"", method=req.method;
     if(action==="login"&&method==="POST"){
+      const origin=req.headers.get("origin");
+      try { if (!origin || new URL(origin).origin !== u.origin) return fail("درخواست ورود نامعتبر است.",403); } catch { return fail("درخواست ورود نامعتبر است.",403); }
+      const rate=await loginBlocked(req);
+      if(rate.blocked) return fail("تعداد تلاش‌های ورود بیش از حد مجاز است. ۱۵ دقیقه بعد دوباره تلاش کن.",429,{"retry-after":String(Math.max(1,Math.ceil((rate.resetAt-Date.now())/1000)))});
       const b=await req.json().catch(()=>({}));
       if(!(process.env.ADMIN_USER || process.env.ADMIN_USERNAME)||!process.env.ADMIN_PASSWORD||!process.env.SESSION_SECRET)return fail("تنظیمات مدیر روی هاست کامل نشده است.",503);
-      if(clean(b.username,100)!==(process.env.ADMIN_USER || process.env.ADMIN_USERNAME)||clean(b.password,200)!==process.env.ADMIN_PASSWORD)return fail("نام کاربری یا رمز عبور اشتباه است.",401);
+      if(clean(b.username,100)!==(process.env.ADMIN_USER || process.env.ADMIN_USERNAME)||clean(b.password,200)!==process.env.ADMIN_PASSWORD){
+        await recordLoginFailure(rate.key,rate.attempts);
+        return fail("نام کاربری یا رمز عبور اشتباه است.",401);
+      }
+      await security.delete(rate.key);
       return json({ok:true},200,{"set-cookie":cookie(await tokenFor((process.env.ADMIN_USER || process.env.ADMIN_USERNAME)))});
     }
     if(action==="logout"&&method==="POST")return json({ok:true},200,{"set-cookie":cookie("",0)});
