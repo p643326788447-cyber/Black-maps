@@ -13,4 +13,16 @@ $("#townhall-filters").addEventListener("click",e=>{const b=e.target.closest("[d
 $("#category-filters").addEventListener("click",e=>{const b=e.target.closest("[data-category]");if(!b)return;state.category=b.dataset.category;document.querySelectorAll(".chip").forEach(x=>x.classList.toggle("active",x===b));renderMaps()});
 async function loadAnnouncements(){try{const d=await api("announcements");if(!d.announcements.length)return;$("#announcements").hidden=false;$("#announcement-list").textContent=d.announcements.map(a=>a.title+" — "+a.text).join("　 |　 ")}catch{}}
 $("#support-form").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),s=$("#support-status");s.textContent="در حال ارسال…";try{await api("support",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:f.get("name"),subject:f.get("subject"),message:f.get("message")})});e.currentTarget.reset();s.textContent="پیام شما ارسال شد. از طریق پنل مدیریت بررسی می‌شود."}catch(err){s.textContent=err.message}};
-loadMaps();loadAnnouncements();
+async function showAdminLinkForOwner(){
+  try {
+    await api("me");
+    const header=document.querySelector(".topbar");
+    if(!header || header.querySelector(".admin-link")) return;
+    const link=document.createElement("a");
+    link.className="admin-link";
+    link.href="/admin.html";
+    link.textContent="پنل مدیریت ♟";
+    header.appendChild(link);
+  } catch {}
+}
+loadMaps();loadAnnouncements();showAdminLinkForOwner();
