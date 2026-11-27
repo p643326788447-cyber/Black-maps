@@ -92,6 +92,13 @@ export default async (req) => {
       const item={id:key,title,th,category,description,link,hasImage:!!hasImage,createdAt:new Date().toISOString()};
       await data.setJSON(`map:${key}`,item);return json({ok:true,map:item},201);
     }
+    if(action==="maps"&&method==="PUT"){
+      if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
+      const b=await req.json().catch(()=>({})),key=clean(b.id,80),item=await getRecord("map",key);if(!item)return fail("نقشه پیدا نشد.",404);
+      const title=clean(b.title,90),th=clean(b.th,2),category=clean(b.category,30),description=clean(b.description,180),link=validLink(b.link);
+      if(!title||!["14","15","16","17","18","19"].includes(th)||!["جنگی","فارمینگ","جام‌گیری","ضد سه‌ستاره"].includes(category)||(!link&&!item.hasImage))return fail("اطلاعات نقشه معتبر نیست.");
+      Object.assign(item,{title,th,category,description,link,updatedAt:new Date().toISOString()});await data.setJSON("map:"+key,item);return json({ok:true,map:item});
+    }
     if(action==="maps"&&method==="DELETE"){
       if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
       const key=clean(u.searchParams.get("id"),80);const item=await getRecord("map",key);if(!item)return fail("نقشه پیدا نشد.",404);
@@ -113,6 +120,12 @@ export default async (req) => {
       if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
       const b=await req.json().catch(()=>({})),commentId=clean(b.id,80),reply=clean(b.reply,800);const all=await list("comment:");const item=all.find(x=>x.id===commentId);if(!item)return fail("نظر پیدا نشد.",404);item.reply=reply;await data.setJSON(`comment:${item.mapId}:${item.id}`,item);return json({ok:true});
     }
+    if(action==="comments"&&method==="PUT"){
+      if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
+      const b=await req.json().catch(()=>({})),commentId=clean(b.id,80),all=await list("comment:"),item=all.find(x=>x.id===commentId);if(!item)return fail("نظر پیدا نشد.",404);
+      const name=clean(b.name,40)||"کاربر",text=clean(b.text,800);if(!text)return fail("متن نظر خالی است.");
+      item.name=name;item.text=text;item.editedAt=new Date().toISOString();await data.setJSON("comment:"+item.mapId+":"+item.id,item);return json({ok:true,comment:item});
+    }
     if(action==="comments"&&method==="DELETE"){
       if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
       const commentId=clean(u.searchParams.get("id"),80),all=await list("comment:");const item=all.find(x=>x.id===commentId);if(!item)return fail("نظر پیدا نشد.",404);await data.delete(`comment:${item.mapId}:${item.id}`);return json({ok:true});
@@ -125,6 +138,16 @@ export default async (req) => {
     if(action==="support"&&method==="GET"){
       if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);return json({messages:await list("support:")});
     }
+    if(action==="support"&&method==="PUT"){
+      if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
+      const b=await req.json().catch(()=>({})),item=await getRecord("support",clean(b.id,80));if(!item)return fail("پیام پیدا نشد.",404);
+      const subject=clean(b.subject,90),message=clean(b.message,1500);if(!subject||!message)return fail("موضوع و متن پیام الزامی است.");
+      item.subject=subject;item.message=message;item.editedAt=new Date().toISOString();await data.setJSON("support:"+item.id,item);return json({ok:true,message:item});
+    }
+    if(action==="support"&&method==="DELETE"){
+      if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
+      const key=clean(u.searchParams.get("id"),80);if(!await getRecord("support",key))return fail("پیام پیدا نشد.",404);await data.delete("support:"+key);return json({ok:true});
+    }
     if(action==="support"&&method==="PATCH"){
       if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
       const b=await req.json().catch(()=>({})),item=await getRecord("support",clean(b.id,80));if(!item)return fail("پیام پیدا نشد.",404);item.reply=clean(b.reply,1200);item.repliedAt=new Date().toISOString();await data.setJSON(`support:${item.id}`,item);return json({ok:true});
@@ -133,6 +156,12 @@ export default async (req) => {
     if(action==="announcements"&&method==="GET")return json({announcements:await list("announcement:")});
     if(action==="announcements"&&method==="POST"){
       if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);const b=await req.json().catch(()=>({})),title=clean(b.title,90),text=clean(b.text,1200);if(!title||!text)return fail("عنوان و متن اطلاعیه الزامی است.");const item={id:id(),title,text,createdAt:new Date().toISOString()};await data.setJSON(`announcement:${item.id}`,item);return json({ok:true,announcement:item},201);
+    }
+    if(action==="announcements"&&method==="PUT"){
+      if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);
+      const b=await req.json().catch(()=>({})),key=clean(b.id,80),item=await getRecord("announcement",key);if(!item)return fail("اطلاعیه پیدا نشد.",404);
+      const title=clean(b.title,90),text=clean(b.text,1200);if(!title||!text)return fail("عنوان و متن اطلاعیه الزامی است.");
+      item.title=title;item.text=text;item.updatedAt=new Date().toISOString();await data.setJSON("announcement:"+key,item);return json({ok:true,announcement:item});
     }
     if(action==="announcements"&&method==="DELETE"){
       if(!await requireAdmin(req))return fail("نیاز به ورود مدیر است.",401);const key=clean(u.searchParams.get("id"),80);if(!await getRecord("announcement",key))return fail("اطلاعیه پیدا نشد.",404);await data.delete(`announcement:${key}`);return json({ok:true});
