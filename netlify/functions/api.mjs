@@ -14,7 +14,7 @@ function enc(bytes){ let s=""; for(const b of bytes)s+=String.fromCharCode(b); r
 function dec(s){ const v=s.replaceAll("-","+").replaceAll("_","/"); const raw=atob(v+"=".repeat((4-v.length%4)%4)); return Uint8Array.from(raw,c=>c.charCodeAt(0)); }
 async function sign(value){const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(process.env.SESSION_SECRET||""),{name:"HMAC",hash:"SHA-256"},false,["sign"]);return enc(new Uint8Array(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(value))));}
 async function tokenFor(user){const payload=enc(new TextEncoder().encode(JSON.stringify({sub:user,exp:Date.now()+REMEMBER_DEVICE_SECONDS*1000})));return `${payload}.${await sign(payload)}`;}
-async function isAdmin(req){try{const token=(req.headers.get("cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="))?.slice(COOKIE.length+1);if(!token||!process.env.SESSION_SECRET||!process.env.ADMIN_USER)return false;const [payload,sig]=token.split(".");if(!payload||!sig||await sign(payload)!==sig)return false;const p=JSON.parse(new TextDecoder().decode(dec(payload)));return p.sub===process.env.ADMIN_USER&&p.exp>Date.now()}catch{return false}}
+async function isAdmin(req){try{const token=(req.headers.get("cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(COOKIE+"="))?.slice(COOKIE.length+1);if(!token||!process.env.SESSION_SECRET||!(process.env.ADMIN_USER || process.env.ADMIN_USERNAME))return false;const [payload,sig]=token.split(".");if(!payload||!sig||await sign(payload)!==sig)return false;const p=JSON.parse(new TextDecoder().decode(dec(payload)));return p.sub===(process.env.ADMIN_USER || process.env.ADMIN_USERNAME)&&p.exp>Date.now()}catch{return false}}
 function cookie(value,maxAge=REMEMBER_DEVICE_SECONDS){return `${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;}
 function id(){return crypto.randomUUID();}
 function clean(s,n=500){return String(s??"").trim().slice(0,n);}
@@ -27,9 +27,9 @@ export default async (req) => {
     const u=new URL(req.url), action=u.searchParams.get("action")||"", method=req.method;
     if(action==="login"&&method==="POST"){
       const b=await req.json().catch(()=>({}));
-      if(!process.env.ADMIN_USER||!process.env.ADMIN_PASSWORD||!process.env.SESSION_SECRET)return fail("تنظیمات مدیر روی هاست کامل نشده است.",503);
-      if(clean(b.username,100)!==process.env.ADMIN_USER||clean(b.password,200)!==process.env.ADMIN_PASSWORD)return fail("نام کاربری یا رمز عبور اشتباه است.",401);
-      return json({ok:true},200,{"set-cookie":cookie(await tokenFor(process.env.ADMIN_USER))});
+      if(!(process.env.ADMIN_USER || process.env.ADMIN_USERNAME)||!process.env.ADMIN_PASSWORD||!process.env.SESSION_SECRET)return fail("تنظیمات مدیر روی هاست کامل نشده است.",503);
+      if(clean(b.username,100)!==(process.env.ADMIN_USER || process.env.ADMIN_USERNAME)||clean(b.password,200)!==process.env.ADMIN_PASSWORD)return fail("نام کاربری یا رمز عبور اشتباه است.",401);
+      return json({ok:true},200,{"set-cookie":cookie(await tokenFor((process.env.ADMIN_USER || process.env.ADMIN_USERNAME)))});
     }
     if(action==="logout"&&method==="POST")return json({ok:true},200,{"set-cookie":cookie("",0)});
     if(action==="me"&&method==="GET")return isAdmin(req)?json({ok:true}):fail("نیاز به ورود مدیر است.",401);
